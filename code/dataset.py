@@ -50,33 +50,11 @@ def load_factors(dirpath, regenerate=True):
                 factor_frame = factor4stocks
             else:
                 factor_frame = pd.concat([factor_frame, factor4stocks])
-            # print(index, '/', len(files), end='\r', flush=True)
-            # factor4stocks = pd.read_csv(os.path.join(dirpath ,file), header=0, sep=',')
-            # if 'factor_frame' not in vars():
-            #     # 根据第一个文件的股票，建立数据结构
-            #     dates = ['-'.join(f.split('.')[0].split('/')) for f in files]
-            #     stocks = factor4stocks['stock'].values.tolist()
-            #     true_stocks = []
-            #     for stock in stocks:
-            #         stock = stock.split('.')
-            #         stock.reverse()
-            #         stock = ''.join(stock)
-            #         true_stocks.append(stock)
-            #     stocks = true_stocks
-            #     iterables = [dates, stocks]
-            #     multi_index = pd.MultiIndex.from_product(iterables, names=['date', 'stocks'])
-            #     factor_frame = pd.DataFrame([np.NaN for i in range(len(dates)*len(stocks))], index = multi_index, columns=['factor'])
-
-            # for No, stock in enumerate(stocks):
-            #     factor_frame.loc[file.split('.')[0], stock] = factor4stocks.loc[No, 'factor_value']
         factor_frame = factor_frame[['date', 'stock', 'factor_value']]
+        factor_frame['date'] = pd.to_datetime(factor_frame['date'])
         factor_frame.set_index('date', inplace=True)
-        print(factor_frame.head())
-        print('-'*64)
         factor_frame = factor_frame.stack()
         factor_frame.index = factor_frame.index.set_names(['date', 'stock'])
-        print(factor_frame.head())
-        exit()
         factor_frame.to_csv(os.path.join('code', 'data', 'factorframe-%s.csv' %(dirpath.split('\\')[-1])), index=True, sep=',')
 
     print('load factors finished')
@@ -84,12 +62,12 @@ def load_factors(dirpath, regenerate=True):
     return factor_frame
 
 
-def load_prices(dirpath, which_price='Close', regenerate=True):
+def load_prices(dirpath, which_price='close', regenerate=True):
     '''
-        股票一分钟中的数据每一列对应date	Time	Open	High	Low	Close	Volume	Amount
+        股票一分钟中的数据每一列对应date	time	open	high	low	close	volume	amount
 
         params:
-            which_price: Close or Open，选择开盘或者收盘价来计算收益率
+            which_price:  close or open，选择开盘或者收盘价来计算收益率
         
     '''
 
@@ -104,8 +82,8 @@ def load_prices(dirpath, which_price='Close', regenerate=True):
         for index, file in enumerate(files):
             print(index, '/', len(files), end='\r', flush=True)
             price4singlestock = pd.read_csv(os.path.join(dirpath, file), header=None)
-            price4singlestock.columns = ['date', 'Time', 'Open', 'High', 'Low', 'Close', 'Volume', 'Amount']
-            price4singlestock = price4singlestock[ price4singlestock['Time'] == '15:00' ]
+            price4singlestock.columns = ['date', 'time', 'open', 'high', 'low', 'close', 'volume', 'amount']
+            price4singlestock = price4singlestock[ price4singlestock['time'] == '15:00' ]
             price4singlestock = price4singlestock[['date', which_price]]
             price4singlestock= price4singlestock.rename(columns={which_price: file.split('.')[0]})
 
@@ -115,6 +93,7 @@ def load_prices(dirpath, which_price='Close', regenerate=True):
                 # pd.DataFrame.merge()
                 price_frame = pd.merge(price_frame, price4singlestock, how='inner', on='date')
         price_frame['date'] = price_frame['date'].apply(lambda x: '-'.join(x.split('/')))
+        price_frame['date'] = pd.to_datetime(price_frame['date'])
         price_frame = price_frame.set_index(['date'])
         price_frame.to_csv(os.path.join('code', 'data', 'priceframe-%s.csv' %(dirpath.split('\\')[-1])), index=True, sep=',')
 
@@ -147,8 +126,6 @@ def calc_IC_value():
     # ticker_sector, factor = load_factors('G:\金融数据\多因子数据\consensus_factor\Factor\PNP', regenerate=False)
     # prices = load_prices('G:\金融数据\√股票一分钟\Stk_1F_2003', regenerate=False)
     print('start calculate IC value')
-    print(factor.head())
-    print(prices.head())
 
     factor_data = alphalens.utils.get_clean_factor_and_forward_returns(factor, 
                                                                     prices, 
