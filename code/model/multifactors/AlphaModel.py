@@ -3,6 +3,7 @@ import os
 import alphalens
 from code import dataset
 
+# TODO:这里其实应该写成一个类的形式把这些函数都丢到alpha modle类中
 
 def calc_single_factor_IC_value(factor_path, prices_frame, start_year, end_year):
     '''
@@ -41,6 +42,7 @@ def calc_all_factors_IC_value(facotrs_path, prices_path, start_year, end_year):
     factors_data_dict = {}
     for factors_dir in factors_dirs:
         if factors_dir.split('_')[0] == 'barra':
+            # TODO:计算barra facotrs
             pass
         else:
             factors = os.listdir(os.path.join(factors_dir, 'Factor'))
