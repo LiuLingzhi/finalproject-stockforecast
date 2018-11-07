@@ -1,3 +1,3 @@
 # coding:utf-8
 
-print("金融")
+print(range(1,3))

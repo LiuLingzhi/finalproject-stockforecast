@@ -36,7 +36,7 @@ def load_barra_factors():
     pass
 
 
-def load_factors(dirpath, regenerate=True):
+def load_single_factor(dirpath, start_year, end_year, regenerate=True):
     print('loading factors ...')
     if regenerate == False:
         factor_frame = pd.read_csv(os.path.join('code', 'data', 'factorframe-%s.csv' %(dirpath.split('\\')[-1])), header=0, sep=',')
@@ -44,6 +44,10 @@ def load_factors(dirpath, regenerate=True):
     else:
         files = os.listdir(dirpath)[:4]
         for index, file in enumerate(files):
+            if file.split('-')[0] < start_year or file.split('-')[0] > end_year:
+                continue
+                # 只读取指定日期内的数据
+
             factor4stocks = pd.read_csv(os.path.join(dirpath ,file), header=0, sep=',')
             factor4stocks['date'] = [file.split('.')[0] for i in range(len(factor4stocks))]
             if 'factor_frame' not in vars():
@@ -62,22 +66,13 @@ def load_factors(dirpath, regenerate=True):
     return factor_frame
 
 
-def load_prices(dirpath, which_price='close', regenerate=True):
-    '''
-        股票一分钟中的数据每一列对应date	time	open	high	low	close	volume	amount
-
-        params:
-            which_price:  close or open，选择开盘或者收盘价来计算收益率
-        
-    '''
-
+def load_period_prices(dirpath, start_year, end_year, which_price='close', regenerate=True):
     print('loading prices ...')
 
-    if regenerate == False:
-        price_frame = pd.read_csv(os.path.join('code', 'data', 'priceframe-%s.csv' %(dirpath.split('\\')[-1])), header=0, sep=',')
-
-    else:
-        files = os.listdir(dirpath)[:4]
+    for year in range(start_year, end_year + 1):
+        single_year_pricesdir = os.path.join(dirpath, 'Stk_1F_' + str(year))
+        
+        files = os.listdir(single_year_pricesdir)[:4]
         stocks = [file.split('.')[0] for file in files]
         for index, file in enumerate(files):
             print(index, '/', len(files), end='\r', flush=True)
@@ -87,19 +82,24 @@ def load_prices(dirpath, which_price='close', regenerate=True):
             price4singlestock = price4singlestock[['date', which_price]]
             price4singlestock= price4singlestock.rename(columns={which_price: file.split('.')[0]})
 
-            if 'price_frame' not in vars():
-                price_frame = price4singlestock
+            if 'single_year_prices_frame' not in vars():
+                single_year_prices_frame = price4singlestock
             else:
                 # pd.DataFrame.merge()
-                price_frame = pd.merge(price_frame, price4singlestock, how='inner', on='date')
-        price_frame['date'] = price_frame['date'].apply(lambda x: '-'.join(x.split('/')))
-        price_frame['date'] = pd.to_datetime(price_frame['date'])
-        price_frame = price_frame.set_index(['date'])
-        price_frame.to_csv(os.path.join('code', 'data', 'priceframe-%s.csv' %(dirpath.split('\\')[-1])), index=True, sep=',')
+                prices_frame = pd.merge(prices_frame, price4singlestock, how='inner', on='date')
+        single_year_prices_frame['date'] = pd.to_datetime(single_year_prices_frame['date'])
+        if 'prices_frame' not in vars():
+            prices_frame = single_year_prices_frame
+        else:
+            prices_frame = pd.concat([prices_frame, single_year_prices_frame])
+
+    prices_frame = prices_frame.set_index(['date'], replace=True)
 
     print('load prices finished')
     print('-'*64)
-    return price_frame
+    return prices_frame
+        # price_frames.to_csv(os.path.join('code', 'data', 'priceframe-%s.csv' %(dirpath.split('\\')[-1])), index=True, sep=',')
+
 
 
 def delet_extremes():
@@ -113,33 +113,9 @@ def normalize():
 
 
 def datapreprocess():
-    
     pass
 
 
-def calc_IC_value():
-    # IC的具体值：
-    #     可以为'皮尔逊相关系数'，所以IC就是price 和 因子的相关系数，称为normal IC
-    #     可以为'斯皮尔曼相关系数'，称为Rank IC
-    factor = load_factors('G:\金融数据\多因子数据\consensus_factor\Factor\PNP')
-    prices = load_prices('G:\金融数据\√股票一分钟\Stk_1F_2003')
-    # ticker_sector, factor = load_factors('G:\金融数据\多因子数据\consensus_factor\Factor\PNP', regenerate=False)
-    # prices = load_prices('G:\金融数据\√股票一分钟\Stk_1F_2003', regenerate=False)
-    print('start calculate IC value')
-
-    factor_data = alphalens.utils.get_clean_factor_and_forward_returns(factor, 
-                                                                    prices, 
-                                                                    quantiles=5,
-                                                                    # bins=None,
-                                                                    # groupby=ticker_sector,
-                                                                    # groupby_labels=sector_names,
-                                                                    periods=[1,5,10])
-
-    # mean_return_by_q, std_err_by_q = alphalens.performance.mean_return_by_quantile
-    # TODO:groupby和groupby_label是什么东西
-    print(factor_data.head())
-    print(factor_data.dtypes)
-    print(factor_data.columns)
 
 def calc_IR_value():
     # 信息比率（IR），即超额收益的均值与标准差之比
@@ -147,9 +123,9 @@ def calc_IR_value():
 
 
 
-def main():
-    calc_IC_value()
+# def main():
+#     calc_IC_value()
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
