@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "E:\\Anacond\\envs\\tf18_gpu_py35\\python.exe"
+    "python.pythonPath": "E:\\Anacond\\envs\\tf18_gpu_py35\\python.exe",
+    "python.autoComplete.extraPaths": ["E:\\Anacond\\envs\\tf18_gpu_py35\\Lib\\site-packages"]
 }
