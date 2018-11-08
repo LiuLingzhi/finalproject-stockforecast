@@ -42,9 +42,9 @@ def load_single_factor(dirpath, start_year, end_year, regenerate=True):
         factor_frame = pd.read_csv(os.path.join('code', 'data', 'factorframe-%s.csv' %(dirpath.split('\\')[-1])), header=0, sep=',')
 
     else:
-        files = os.listdir(dirpath)[:4]
-        for index, file in enumerate(files):
-            if file.split('-')[0] < start_year or file.split('-')[0] > end_year:
+        files = os.listdir(dirpath)
+        for file in files:
+            if int(file.split('-')[0]) < start_year or int(file.split('-')[0]) > end_year:
                 continue
                 # 只读取指定日期内的数据
 
@@ -68,33 +68,50 @@ def load_single_factor(dirpath, start_year, end_year, regenerate=True):
 
 def load_period_prices(dirpath, start_year, end_year, which_price='close', regenerate=True):
     print('loading prices ...')
-
-    for year in range(start_year, end_year + 1):
-        single_year_pricesdir = os.path.join(dirpath, 'Stk_1F_' + str(year))
-        
-        files = os.listdir(single_year_pricesdir)[:4]
-        stocks = [file.split('.')[0] for file in files]
-        for index, file in enumerate(files):
-            print(index, '/', len(files), end='\r', flush=True)
-            price4singlestock = pd.read_csv(os.path.join(dirpath, file), header=None)
-            price4singlestock.columns = ['date', 'time', 'open', 'high', 'low', 'close', 'volume', 'amount']
-            price4singlestock = price4singlestock[ price4singlestock['time'] == '15:00' ]
-            price4singlestock = price4singlestock[['date', which_price]]
-            price4singlestock= price4singlestock.rename(columns={which_price: file.split('.')[0]})
-
-            if 'single_year_prices_frame' not in vars():
-                single_year_prices_frame = price4singlestock
-            else:
-                # pd.DataFrame.merge()
-                prices_frame = pd.merge(prices_frame, price4singlestock, how='inner', on='date')
-        single_year_prices_frame['date'] = pd.to_datetime(single_year_prices_frame['date'])
-        if 'prices_frame' not in vars():
-            prices_frame = single_year_prices_frame
+    if regenerate == False:
+        if os.path.exists(os.path.join('codes', 'data', which_price + '-prices-' + str(start_year) + '-' + str(end_year) + '.csv')):
+            prices_frame = pd.read_csv(os.path.join('codes', 'data', which_price + '-prices-' + str(start_year) + '-' + str(end_year) + '.csv'))
         else:
-            prices_frame = pd.concat([prices_frame, single_year_prices_frame])
+            regenerate = True
+            print('there is not price_frame file existed, generating ...')
 
-    prices_frame = prices_frame.set_index(['date'], replace=True)
+    if regenerate == True:
+        total_files_num = 0
+        for year in range(start_year, end_year + 1):
+            single_year_pricesdir = os.path.join(dirpath, 'Stk_1F_' + str(year))
+            files = os.listdir(single_year_pricesdir)
+            total_files_num = total_files_num + len(files)
 
+        for year in range(start_year, end_year + 1):
+            single_year_pricesdir = os.path.join(dirpath, 'Stk_1F_' + str(year))
+            
+            files = os.listdir(single_year_pricesdir)
+            stocks = [file.split('.')[0] for file in files]
+
+            for index, file in enumerate(files):
+                print(index, '/', total_files_num, end='\r', flush=True)
+                price4singlestock = pd.read_csv(os.path.join(single_year_pricesdir, file), header=None)
+                price4singlestock.columns = ['date', 'time', 'open', 'high', 'low', 'close', 'volume', 'amount']
+                price4singlestock = price4singlestock[ price4singlestock['time'] == '15:00' ]
+                price4singlestock = price4singlestock[['date', which_price]]
+                price4singlestock= price4singlestock.rename(columns={which_price: file.split('.')[0]})
+
+                if 'single_year_prices_frame' not in vars():
+                    single_year_prices_frame = price4singlestock
+                else:
+                    # pd.DataFrame.merge()
+                    single_year_prices_frame = pd.merge(single_year_prices_frame, price4singlestock, how='inner', on='date')
+            if 'prices_frame' not in vars():
+                prices_frame = single_year_prices_frame
+            else:
+                prices_frame = pd.concat([prices_frame, single_year_prices_frame])
+
+        prices_frame['date'] = pd.to_datetime(prices_frame['date'])
+        prices_frame = prices_frame.set_index(['date'], inplace=True)
+        prices_frame.to_csv(os.path.join('codes', 'data', which_price + '-prices-' + str(start_year) + '-' + str(end_year) + '.csv'),
+            index = True,
+            sep = ','
+        )
     print('load prices finished')
     print('-'*64)
     return prices_frame
